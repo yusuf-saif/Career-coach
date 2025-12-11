@@ -1,29 +1,18 @@
 /* styles.css
  *
- * Extra styles on top of Tailwind to keep HTML clean.
- * Keep anything non-utility-class here so contributors
- * can tweak layout/animations easily.
+ * Extra styles on top of Tailwind.
+ * Keep this file framework-agnostic so GitHub Pages can serve it directly.
  */
 
-/* Soft radial background (used via custom class in body) */
-.bg-radial {
-  background-image: radial-gradient(circle at top, #1f2937, #020617 55%);
+/* Smooth fade/slide for key sections */
+.fade-in-up {
+  animation: fadeInUp 0.35s ease-out both;
 }
 
-/* Choice pill styling shared by radio/checkbox labels */
-.choice-pill {
-  @apply relative flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-[0.78rem] sm:text-xs text-slate-100 cursor-pointer transition transform hover:-translate-y-0.5 hover:border-brand-400/80 hover:bg-slate-900 focus-within:ring-2 focus-within:ring-brand-500;
-}
-
-.choice-pill-input {
-  @apply h-4 w-4 text-brand-500 accent-brand-500;
-}
-
-/* Simple "animate in" helper for the result panel (fallback for browsers without Tailwind plugins) */
-@keyframes slideInUpSoft {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -31,18 +20,50 @@
   }
 }
 
-.animate-in.slide-in-from-bottom-4 {
-  animation: slideInUpSoft 0.25s ease-out both;
+/* Choice pill styling shared by radio/checkbox labels */
+.choice-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(51, 65, 85, 0.9); /* slate-700 */
+  background: rgba(15, 23, 42, 0.9); /* slate-900 */
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  color: #e5e7eb; /* slate-200/100 */
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
 }
 
-/* Scrollbar styling for nicer modal scroll */
+.choice-pill:hover {
+  border-color: rgba(129, 140, 248, 1); /* indigo-400 */
+  background: rgba(15, 23, 42, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
+}
+
+/* Make the input visually aligned but not dominant */
+.choice-pill-input {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+/* Scrollbar styling for the modal body */
 #quizModal .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }
+
 #quizModal .overflow-y-auto::-webkit-scrollbar-track {
   background: transparent;
 }
+
 #quizModal .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(30, 64, 175, 0.6);
+  background: rgba(79, 70, 229, 0.7); /* brand-ish */
   border-radius: 999px;
 }
