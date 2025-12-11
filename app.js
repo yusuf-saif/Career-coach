@@ -1,33 +1,30 @@
 // app.js
 // -----------------------------------------------------------------------------
-//  Tech Career Fit Quiz – Frontend logic
-//  - Multi-step modal form
-//  - Supabase insert (public anon key only)
-//  - Simple rules-based recommendation engine + starter resource links
+// Tech Career Fit Quiz – Frontend logic
+// - Multi-step modal form
+// - Supabase insert (anon key only)
+// - Rules-based recommendation engine + starter resource links
+// - Fun 10→1 countdown before revealing the result
+// - Copy & share helpers
 // -----------------------------------------------------------------------------
 //
-//  SETUP NOTES
-//  -----------
-//  1. Replace SUPABASE_URL and SUPABASE_ANON_KEY with your own values from:
-//     Supabase dashboard → Project Settings → API
-//  2. Use the *anon/publishable* key ONLY (never the secret key) in this file.
-//  3. Ensure you created the `career_responses` table and insert policy as
-//     discussed in your SQL script.
+// SECURITY NOTE
+// -------------
+// Use ONLY the anon/publishable key from Supabase on the frontend.
+// Do NOT expose your service_role / secret key in any client code.
 //
 // -----------------------------------------------------------------------------
+
+/* global supabase */
 
 // ===== Supabase client setup ================================================
 
-const { createClient } = window.supabase;
+const { createClient } = supabase;
 
-// TODO: Replace these with YOUR project settings.
-//
-// Example:
-// const SUPABASE_URL = "https://abcd1234.supabase.co";
-// const SUPABASE_ANON_KEY = "sb_publishable_xxx";
-//
+// Your project details (safe to expose because RLS is enabled and we only insert)
 const SUPABASE_URL = "https://dikptazrcdeypabrybjd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpa3B0YXpyY2RleXBhYnJ5YmpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NDQyMDgsImV4cCI6MjA4MTAyMDIwOH0.Sj2rwFXRff16aFmuKCexJsmSv0zNd0ePwFjg2H2grnE";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpa3B0YXpyY2RleXBhYnJ5YmpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NDQyMDgsImV4cCI6MjA4MTAyMDIwOH0.Sj2rwFXRff16aFmuKCexJsmSv0zNd0ePwFjg2H2grnE";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -52,15 +49,26 @@ const statusText = document.getElementById("statusText");
 const errorMsg = document.getElementById("errorMsg");
 const successMsg = document.getElementById("successMsg");
 
+const formPanel = document.getElementById("formPanel");
+const loadingPanel = document.getElementById("loadingPanel");
+const countdownNumber = document.getElementById("countdownNumber");
+const countdownMessage = document.getElementById("countdownMessage");
+const countdownBar = document.getElementById("countdownBar");
+
 const resultPanel = document.getElementById("resultPanel");
 const careerTitle = document.getElementById("careerTitle");
 const careerDescription = document.getElementById("careerDescription");
+const careerSummaryText = document.getElementById("careerSummaryText");
 const careerResources = document.getElementById("careerResources");
 
-// ===== Stepper state ========================================================
+const copyResultBtn = document.getElementById("copyResultBtn");
+const shareResultBtn = document.getElementById("shareResultBtn");
+const copyShareStatus = document.getElementById("copyShareStatus");
 
 let currentStep = 0;
 const TOTAL_STEPS = formSteps.length;
+
+let lastShareText = ""; // built when recommendation is computed
 
 // ===== Modal helpers ========================================================
 
@@ -68,11 +76,14 @@ function openModal() {
   modal.classList.remove("hidden");
   modal.classList.add("flex");
   modal.setAttribute("aria-hidden", "false");
+
   currentStep = 0;
-  resultPanel.classList.add("hidden"); // reset
+  resultPanel.classList.add("hidden");
+  loadingPanel.classList.add("hidden");
+  formPanel.classList.remove("hidden");
+
   showStep(currentStep);
 
-  // Focus first field for accessibility
   const firstInput = formSteps[0].querySelector("input, textarea, select");
   if (firstInput) firstInput.focus();
 }
@@ -83,7 +94,10 @@ function closeModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
-// Close modal when clicking overlay
+openModalBtn.addEventListener("click", openModal);
+closeModalBtn.addEventListener("click", closeModal);
+
+// Close on backdrop click
 modal.addEventListener("click", (e) => {
   if (e.target === modal) {
     closeModal();
@@ -97,10 +111,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-openModalBtn.addEventListener("click", openModal);
-closeModalBtn.addEventListener("click", closeModal);
-
-// ===== Step UI / navigation ==================================================
+// ===== Step UI / navigation =================================================
 
 function getStepName(stepIndex) {
   switch (stepIndex) {
@@ -147,7 +158,6 @@ function showStep(stepIndex) {
       ? "Almost there – submit to see your recommended path."
       : "You can move back and forth; answers are kept as you go.";
 
-  // Clear messages when navigating
   errorMsg.classList.add("hidden");
   successMsg.classList.add("hidden");
 }
@@ -155,7 +165,6 @@ function showStep(stepIndex) {
 function validateCurrentStep() {
   const activeStep = formSteps[currentStep];
 
-  // Check required inputs in this step
   const requiredFields = activeStep.querySelectorAll("[required]");
   for (const field of requiredFields) {
     if (!field.checkValidity()) {
@@ -164,7 +173,7 @@ function validateCurrentStep() {
     }
   }
 
-  // Additional custom validation for interests step: at least 1 selected
+  // Custom: on interests step, require at least 1 checkbox
   if (activeStep.dataset.step === "2") {
     const interestInputs = activeStep.querySelectorAll(
       "input[name='q_interests']"
@@ -199,12 +208,8 @@ function goToPrevStep() {
 nextBtn.addEventListener("click", goToNextStep);
 prevBtn.addEventListener("click", goToPrevStep);
 
-// ===== Form data helpers =====================================================
+// ===== Form data helpers ====================================================
 
-/**
- * Collects all answers into a plain JS object.
- * Handles multi-select (checkbox) fields by returning an array for those keys.
- */
 function getFormAnswers() {
   const formData = new FormData(form);
   const answers = {};
@@ -222,13 +227,8 @@ function getFormAnswers() {
   return answers;
 }
 
-// ===== Recommendation engine ================================================
+// ===== Recommendation engine ===============================================
 
-/**
- * Rules-based scoring to suggest the most aligned tech path.
- * This is intentionally simple & transparent so you can tweak it for your
- * coaching style.
- */
 function computeCareerRecommendation(answers) {
   const scores = {
     "Software Engineering": 0,
@@ -246,7 +246,7 @@ function computeCareerRecommendation(answers) {
     }
   }
 
-  // --- Interests ------------------------------------------------------------
+  // Interests (multi-select)
   const interestsRaw = answers["q_interests"];
   const interests = Array.isArray(interestsRaw)
     ? interestsRaw
@@ -279,7 +279,7 @@ function computeCareerRecommendation(answers) {
     bump("Product / Project Management", 1);
   }
 
-  // --- Coding preference ----------------------------------------------------
+  // Coding preference
   switch (answers["q_coding_feel"]) {
     case "love-code":
       bump("Software Engineering", 3);
@@ -301,7 +301,7 @@ function computeCareerRecommendation(answers) {
       break;
   }
 
-  // --- Problem type ---------------------------------------------------------
+  // Problem type
   switch (answers["q_problem_type"]) {
     case "logic":
       bump("Software Engineering", 2);
@@ -326,7 +326,7 @@ function computeCareerRecommendation(answers) {
       break;
   }
 
-  // --- People vs deep focus -------------------------------------------------
+  // People vs deep focus
   switch (answers["q_people_vs_detail"]) {
     case "people-facing":
       bump("Product / Project Management", 2);
@@ -346,7 +346,7 @@ function computeCareerRecommendation(answers) {
       break;
   }
 
-  // --- Values ---------------------------------------------------------------
+  // Values (multi-select)
   const valuesRaw = answers["q_values"];
   const values = Array.isArray(valuesRaw)
     ? valuesRaw
@@ -385,7 +385,7 @@ function computeCareerRecommendation(answers) {
     bump("Digital Marketing / Growth", 1);
   }
 
-  // --- Compute best role ----------------------------------------------------
+  // Pick highest scoring role
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const [bestRole, bestScore] = sorted[0];
 
@@ -401,7 +401,7 @@ function computeCareerRecommendation(answers) {
     "QA / Testing":
       "You’re detail-oriented and enjoy catching issues before they blow up. QA roles focus on testing features, writing test cases and helping teams ship reliable products.",
     "No-Code / Automation Specialist":
-      "You like building real solutions without going too deep into code. No-code/automation roles use tools like Zapier, Make, Notion, Airtable, Softr, Webflow and more to build workflows and internal tools quickly.",
+      "You like building real solutions without going deep into code. No-code/automation roles use tools like Zapier, Make, Notion, Airtable, Webflow and more to build workflows and internal tools quickly.",
     "Digital Marketing / Growth":
       "You’re interested in content, audiences and experiments. Growth roles mix creativity with analytics — landing pages, emails, social, SEO and data to acquire and retain users.",
   };
@@ -414,10 +414,7 @@ function computeCareerRecommendation(answers) {
   };
 }
 
-/**
- * Simple resource mapping: role -> starter links
- * Keep these high-level, free/low-cost, and beginner-friendly.
- */
+// Starter links per role
 function getResourcesForRole(role) {
   const resourceMap = {
     "Software Engineering": [
@@ -430,37 +427,25 @@ function getResourcesForRole(role) {
         url: "https://www.theodinproject.com/paths/full-stack-javascript",
       },
       {
-        label: "Frontend Mentor (practice building real UIs)",
+        label: "Frontend Mentor – practice UI builds",
         url: "https://www.frontendmentor.io/",
       },
     ],
     "UI/UX Design": [
+      { label: "Figma – Free design tool", url: "https://www.figma.com/" },
       {
-        label: "Figma – Free design tool",
-        url: "https://www.figma.com/",
-      },
-      {
-        label: "Google UX Design Certificate (overview page)",
+        label: "Google UX Design Certificate (overview)",
         url: "https://www.coursera.org/professional-certificates/google-ux-design",
       },
-      {
-        label: "LearnUX – UI/UX basics & patterns",
-        url: "https://learnux.io/",
-      },
+      { label: "LearnUX – UI/UX basics", url: "https://learnux.io/" },
     ],
     "Data Analysis / Data Science": [
       {
         label: "Google Data Analytics Certificate (overview)",
         url: "https://www.coursera.org/professional-certificates/google-data-analytics",
       },
-      {
-        label: "Kaggle – Intro to Python & Data Analysis",
-        url: "https://www.kaggle.com/learn",
-      },
-      {
-        label: "DataCamp – Free Intro to SQL",
-        url: "https://www.datacamp.com/",
-      },
+      { label: "Kaggle – free data courses", url: "https://www.kaggle.com/learn" },
+      { label: "DataCamp – SQL & Python", url: "https://www.datacamp.com/" },
     ],
     "Product / Project Management": [
       {
@@ -468,17 +453,17 @@ function getResourcesForRole(role) {
         url: "https://www.coursera.org/professional-certificates/google-project-management",
       },
       {
-        label: "Product School – Free resources",
+        label: "Product School – resources",
         url: "https://productschool.com/resources",
       },
       {
-        label: "Mind the Product – Articles & talks",
+        label: "Mind the Product – articles & talks",
         url: "https://www.mindtheproduct.com/",
       },
     ],
     "QA / Testing": [
       {
-        label: "Ministry of Testing – Intro resources",
+        label: "Ministry of Testing – intro resources",
         url: "https://www.ministryoftesting.com/",
       },
       {
@@ -496,31 +481,105 @@ function getResourcesForRole(role) {
         url: "https://zapier.com/university",
       },
       {
-        label: "Make (formerly Integromat) – tutorials",
+        label: "Make (Integromat) – tutorials",
         url: "https://www.make.com/en/academy",
       },
       {
-        label: "Airtable Guides – building simple tools",
+        label: "Airtable Guides – building tools",
         url: "https://support.airtable.com/docs",
       },
     ],
     "Digital Marketing / Growth": [
       {
-        label: "Google Digital Garage – Fundamentals of Digital Marketing",
+        label: "Google Digital Garage – Marketing fundamentals",
         url: "https://learndigital.withgoogle.com/digitalgarage/course/digital-marketing",
       },
       {
-        label: "HubSpot Academy – free marketing courses",
+        label: "HubSpot Academy – marketing courses",
         url: "https://academy.hubspot.com/courses/marketing",
       },
-      {
-        label: "Ahrefs Blog – SEO & content strategy",
-        url: "https://ahrefs.com/blog/",
-      },
+      { label: "Ahrefs Blog – SEO & content", url: "https://ahrefs.com/blog/" },
     ],
   };
 
   return resourceMap[role] || [];
+}
+
+// Build a shareable text block for copy/share
+function buildShareText(name, recommendation, resources) {
+  const lines = [];
+
+  if (name) {
+    lines.push(`Hey ${name}, here’s your suggested tech path 👇`);
+  } else {
+    lines.push("Here’s a suggested tech path based on my answers 👇");
+  }
+
+  lines.push("");
+  lines.push(`Best-fit career: ${recommendation.role}`);
+  lines.push("");
+  lines.push(recommendation.description);
+  lines.push("");
+
+  if (resources.length > 0) {
+    lines.push("Starter resources:");
+    resources.forEach((r) => {
+      lines.push(`- ${r.label}: ${r.url}`);
+    });
+  }
+
+  lines.push("");
+  lines.push("Remember: this is a starting point. You can always pivot as you learn.");
+
+  return lines.join("\n");
+}
+
+// ===== Countdown logic ======================================================
+
+/**
+ * Runs a 10→1 countdown with UI updates and returns a Promise
+ * that resolves after the countdown finishes.
+ */
+function runCountdown() {
+  return new Promise((resolve) => {
+    const totalSeconds = 10;
+    let remaining = totalSeconds;
+
+    countdownNumber.textContent = String(remaining);
+    countdownMessage.textContent =
+      "Give me about 10 seconds to think this through.";
+    countdownBar.style.width = "0%";
+
+    const timer = setInterval(() => {
+      remaining -= 1;
+
+      if (remaining >= 1) {
+        countdownNumber.textContent = String(remaining);
+
+        if (remaining > 5) {
+          countdownMessage.textContent =
+            "Checking your interests, work style and values…";
+        } else if (remaining > 2) {
+          countdownMessage.textContent =
+            "Aligning you with realistic, beginner-friendly paths…";
+        } else {
+          countdownMessage.textContent =
+            "Alright chief, lining up the path that fits you best…";
+        }
+
+        const progressPercent = ((totalSeconds - remaining) / totalSeconds) * 100;
+        countdownBar.style.width = `${progressPercent}%`;
+      } else {
+        // 0 reached: finish
+        clearInterval(timer);
+        countdownNumber.textContent = "0";
+        countdownBar.style.width = "100%";
+        countdownMessage.textContent =
+          "Alright chief, here’s the tech path that fits you best.";
+        setTimeout(() => resolve(), 600); // tiny pause for drama
+      }
+    }, 1000);
+  });
 }
 
 // ===== Submit handler =======================================================
@@ -530,28 +589,59 @@ form.addEventListener("submit", async (event) => {
 
   errorMsg.classList.add("hidden");
   successMsg.classList.add("hidden");
+  copyShareStatus.textContent = "";
   statusText.textContent = "Computing your best fit…";
 
   const answers = getFormAnswers();
 
-  // Basic safety check on contact fields
+  // Guard on core contact fields
   if (!answers.name || !answers.email || !answers.phone) {
     errorMsg.textContent =
       "Please fill in your name, email, and phone number.";
     errorMsg.classList.remove("hidden");
-    statusText.textContent = "Please complete the required contact details.";
+    statusText.textContent =
+      "Please complete the required contact details before submitting.";
     return;
   }
 
   // 1) Compute recommendation
   const recommendation = computeCareerRecommendation(answers);
 
-  // 2) Render result panel immediately (even if Supabase fails)
+  // Prepare resources + share text
+  const resources = getResourcesForRole(recommendation.role);
+
+  // 2) Swap UI: show countdown loader
+  formPanel.classList.remove("hidden");
+  resultPanel.classList.add("hidden");
+  loadingPanel.classList.remove("hidden");
+  formPanel.classList.add("pointer-events-none");
+  submitBtn.disabled = true;
+  nextBtn.disabled = true;
+  prevBtn.disabled = true;
+
+  // 3) Save to Supabase in the background (don't block countdown)
+  const payload = {
+    name: answers.name,
+    email: answers.email,
+    phone: answers.phone,
+    answers,
+    recommended_career: recommendation.role,
+  };
+
+  const savePromise = sb.from("career_responses").insert(payload);
+
+  // 4) Run countdown
+  await runCountdown();
+
+  // 5) Reveal result
+  loadingPanel.classList.add("hidden");
+  formPanel.classList.remove("pointer-events-none");
+  resultPanel.classList.remove("hidden");
+
   careerTitle.textContent = recommendation.role;
   careerDescription.textContent = recommendation.description;
 
-  // Render resources
-  const resources = getResourcesForRole(recommendation.role);
+  // Render resources list
   careerResources.innerHTML = "";
   resources.forEach((res) => {
     const li = document.createElement("li");
@@ -560,8 +650,7 @@ form.addEventListener("submit", async (event) => {
     link.textContent = res.label;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.className =
-      "hover:underline inline-flex items-center gap-1";
+    link.className = "hover:underline inline-flex items-center gap-1";
     const icon = document.createElement("span");
     icon.textContent = "↗";
     icon.className = "text-[0.7rem]";
@@ -570,45 +659,88 @@ form.addEventListener("submit", async (event) => {
     careerResources.appendChild(li);
   });
 
-  resultPanel.classList.remove("hidden");
+  // Build shareable text
+  lastShareText = buildShareText(answers.name, recommendation, resources);
+  careerSummaryText.textContent = lastShareText;
 
-  // 3) Save to Supabase
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Saving...";
+  statusText.textContent =
+    "Result generated. You can copy or share this, and close the modal when you’re done.";
+
+  // 6) Handle Supabase save result when it completes
+  savePromise
+    .then(({ error }) => {
+      if (error) {
+        console.error("Supabase insert error:", error);
+        errorMsg.textContent =
+          "We generated your result, but saving it to the database failed. You may want to screenshot or copy this result.";
+        errorMsg.classList.remove("hidden");
+      } else {
+        successMsg.textContent =
+          "Saved! You can revisit this recommendation later with your coach.";
+        successMsg.classList.remove("hidden");
+      }
+    })
+    .catch((err) => {
+      console.error("Unexpected error while saving:", err);
+      errorMsg.textContent =
+        "Unexpected error while saving your results. Please screenshot or copy this result.";
+      errorMsg.classList.remove("hidden");
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+      nextBtn.disabled = false;
+      prevBtn.disabled = false;
+    });
+});
+
+// ===== Copy & share handlers ===============================================
+
+copyResultBtn.addEventListener("click", async () => {
+  copyShareStatus.textContent = "";
+  if (!lastShareText) return;
 
   try {
-    const payload = {
-      name: answers.name,
-      email: answers.email,
-      phone: answers.phone,
-      answers, // full JSON blob of all answers
-      recommended_career: recommendation.role,
-    };
-
-    const { error } = await sb.from("career_responses").insert(payload);
-
-    if (error) {
-      console.error("Supabase insert error:", error);
-      errorMsg.textContent =
-        "We generated your result, but saving it to the database failed. You may want to screenshot this result.";
-      errorMsg.classList.remove("hidden");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(lastShareText);
+      copyShareStatus.textContent = "Copied to clipboard ✅";
     } else {
-      successMsg.textContent =
-        "Saved! You can revisit this recommendation in your coaching session.";
-      successMsg.classList.remove("hidden");
+      // Fallback: select the pre text
+      const range = document.createRange();
+      range.selectNodeContents(careerSummaryText);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      copyShareStatus.textContent = "Select + copy from the box above.";
     }
   } catch (err) {
-    console.error("Unexpected error while saving:", err);
-    errorMsg.textContent =
-      "Unexpected error while saving your results. Please screenshot this page and share it with your coach.";
-    errorMsg.classList.remove("hidden");
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Get my best-fit path";
-    statusText.textContent =
-      "Result generated. You can close the modal when you’re done.";
+    console.error("Copy failed:", err);
+    copyShareStatus.textContent = "Copy failed. Try selecting manually.";
   }
 });
 
-// ===== Initial step render (in case modal is already open) ==================
+shareResultBtn.addEventListener("click", async () => {
+  copyShareStatus.textContent = "";
+  if (!lastShareText) return;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "My Tech Career Fit Result",
+        text: lastShareText,
+      });
+      copyShareStatus.textContent = "Shared 🎉";
+    } catch (err) {
+      if (err && err.name !== "AbortError") {
+        console.error("Share failed:", err);
+        copyShareStatus.textContent = "Share failed. You can copy instead.";
+      }
+    }
+  } else {
+    copyShareStatus.textContent =
+      "Sharing isn’t supported here. Try the copy button instead.";
+  }
+});
+
+// Initial state for steps
 showStep(currentStep);
+
