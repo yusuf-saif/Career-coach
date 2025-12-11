@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tech Career Fit Quiz</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Tailwind CDN for quick static hosting (GitHub Pages) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom config for a nicer palette -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#eef2ff",
+                100: "#e0e7ff",
+                500: "#6366f1",
+                600: "#4f46e5",
+                700: "#4338ca",
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- Your own styles for extra polish -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body
+    class="min-h-screen bg-slate-950 bg-radial from-slate-800 to-slate-950 text-slate-50 flex items-center justify-center p-4"
+  >
+    <!-- Main shell -->
+    <main
+      class="w-full max-w-xl rounded-3xl border border-slate-700/60 bg-slate-900/70 shadow-2xl shadow-slate-950/70 backdrop-blur-xl px-6 py-7 sm:px-8 sm:py-9 relative overflow-hidden"
+    >
+      <!-- Decorative gradient blob -->
+      <div
+        class="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-brand-600/40 blur-3xl"
+        aria-hidden="true"
+      ></div>
+
+      <!-- Little status pill -->
+      <div
+        class="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 mb-4"
+      >
+        <span
+          class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.35)]"
+        ></span>
+        <span class="text-xs font-medium text-emerald-100">
+          5–7 mins • Personalized tech career suggestion
+        </span>
+      </div>
+
+      <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
+        Tech Career Fit Questionnaire
+      </h1>
+      <p class="text-sm sm:text-base text-slate-300 mb-5">
+        Answer a few guided questions and we’ll suggest a tech path that matches
+        your strengths, interests, and lifestyle. Perfect as a starting point
+        for coaching conversations.
+      </p>
+
+      <button
+        id="openModalBtn"
+        class="inline-flex items-center gap-2 rounded-full bg-gradient-to-tr from-brand-600 to-brand-500 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium text-white shadow-lg shadow-brand-900/60 hover:shadow-brand-900/80 hover:scale-[1.02] active:scale-100 transition-transform transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-400 focus-visible:ring-offset-slate-900"
+      >
+        Start questionnaire
+        <span class="text-lg sm:text-xl motion-safe:animate-bounce">↗</span>
+      </button>
+
+      <p class="mt-4 text-xs text-slate-400">
+        We’ll store your responses securely with Supabase. Only the coach or
+        admin will review them.
+      </p>
+    </main>
+
+    <!-- Modal wrapper -->
+    <div
+      id="quizModal"
+      class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-950/75 backdrop-blur-md"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quizModalTitle"
+    >
+      <!-- Modal content -->
+      <div
+        class="relative w-full max-w-3xl max-h-[94vh] rounded-3xl border border-slate-700/80 bg-slate-950/95 shadow-[0_24px_90px_rgba(0,0,0,0.9)] px-4 py-4 sm:px-6 sm:py-5 flex flex-col"
+      >
+        <!-- Top bar -->
+        <header class="flex items-start gap-3 mb-3">
+          <div class="flex-1">
+            <h2
+              id="quizModalTitle"
+              class="text-lg sm:text-xl font-semibold text-slate-50 flex items-center gap-2"
+            >
+              Tech Career Fit Questionnaire
+              <span
+                class="inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-brand-100"
+              >
+                New
+              </span>
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+              Your honest answers help us pick a path that feels natural to you,
+              not just “what’s hot”.
+            </p>
+          </div>
+
+          <button
+            id="closeModalBtn"
+            type="button"
+            class="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-slate-50 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            aria-label="Close questionnaire"
+          >
+            ✕
+          </button>
+        </header>
+
+        <!-- Step text + percentage -->
+        <div class="flex items-center justify-between text-[0.75rem] mb-1">
+          <span id="stepLabel" class="text-slate-400">Step 1 of 5 · Contact</span>
+          <span id="stepPercent" class="text-slate-300 font-medium">0%</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div
+          class="w-full h-2 rounded-full bg-slate-900 border border-slate-700/90 overflow-hidden mb-3"
+        >
+          <div
+            id="progressBar"
+            class="h-full w-0 bg-gradient-to-r from-emerald-400 via-brand-500 to-sky-400 transition-all duration-300"
+          ></div>
+        </div>
+
+        <!-- Scrollable form body -->
+        <div class="flex-1 overflow-y-auto pr-1">
+          <form id="quizForm" class="space-y-3 sm:space-y-4">
+            <!-- STEP 0: CONTACT -->
+            <section
+              class="form-step space-y-4 sm:space-y-5"
+              data-step="0"
+            >
+              <div>
+                <h3 class="text-base sm:text-lg font-semibold mb-1">
+                  Contact details
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-400">
+                  So we can share your results, follow up with resources, or
+                  continue during a coaching call.
+                </p>
+              </div>
+
+              <div
+                class="grid gap-3 sm:gap-4 sm:grid-cols-2"
+              >
+                <div class="sm:col-span-1">
+                  <label
+                    for="name"
+                    class="block text-xs font-medium text-slate-200 mb-1"
+                    >Full name *</label
+                  >
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    required
+                    autocomplete="name"
+                    placeholder="Ada Lovelace"
+                    class="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  />
+                </div>
+
+                <div class="sm:col-span-1">
+                  <label
+                    for="email"
+                    class="block text-xs font-medium text-slate-200 mb-1"
+                    >Email *</label
+                  >
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    autocomplete="email"
+                    placeholder="you@example.com"
+                    class="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  />
+                </div>
+
+                <div class="sm:col-span-1">
+                  <label
+                    for="phone"
+                    class="block text-xs font-medium text-slate-200 mb-1"
+                    >Phone / WhatsApp *</label
+                  >
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    required
+                    autocomplete="tel"
+                    placeholder="+234..."
+                    class="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <p class="text-xs text-slate-400">
+                We won’t spam you. This is only for sharing your result and
+                supporting your learning journey.
+              </p>
+            </section>
+
+            <!-- STEP 1: WORK STYLE -->
+            <section
+              class="form-step hidden space-y-4 sm:space-y-5"
+              data-step="1"
+            >
+              <div>
+                <h3 class="text-base sm:text-lg font-semibold mb-1">
+                  Work style & strengths
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-400">
+                  How you like to think and work tells us a lot about which
+                  roles will feel natural.
+                </p>
+              </div>
+
+              <!-- Work style -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  When you’re working on something, you prefer… *
+                </p>
+                <div
+                  class="grid gap-2 sm:grid-cols-3"
+                >
+                  <label
+                    class="choice-pill"
+                  >
+                    <input
+                      type="radio"
+                      name="q_work_style"
+                      value="clear-steps"
+                      required
+                      class="choice-pill-input"
+                    />
+                    <span>Clear instructions and step-by-step guidance</span>
+                  </label>
+
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_work_style"
+                      value="freedom"
+                      class="choice-pill-input"
+                    />
+                    <span>A lot of freedom to figure things out</span>
+                  </label>
+
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_work_style"
+                      value="mix"
+                      class="choice-pill-input"
+                    />
+                    <span>A mix of structure and freedom</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Collaboration -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  You get your energy mostly from… *
+                </p>
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_collaboration"
+                      value="solo"
+                      required
+                      class="choice-pill-input"
+                    />
+                    <span>Deep solo focus and quiet time</span>
+                  </label>
+
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_collaboration"
+                      value="people"
+                      class="choice-pill-input"
+                    />
+                    <span>Talking to people, discussing ideas</span>
+                  </label>
+
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_collaboration"
+                      value="hybrid"
+                      class="choice-pill-input"
+                    />
+                    <span>A healthy mix of solo time and collaboration</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Problem type -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  What kind of problems do you naturally enjoy? *
+                </p>
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_problem_type"
+                      value="logic"
+                      required
+                      class="choice-pill-input"
+                    />
+                    <span>Logical puzzles, systems, fixing broken things</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_problem_type"
+                      value="creative"
+                      class="choice-pill-input"
+                    />
+                    <span>Creative & visual challenges</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_problem_type"
+                      value="people"
+                      class="choice-pill-input"
+                    />
+                    <span>Understanding people & improving their experience</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_problem_type"
+                      value="organising"
+                      class="choice-pill-input"
+                    />
+                    <span>Organising, planning, coordinating and follow-up</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_problem_type"
+                      value="numbers"
+                      class="choice-pill-input"
+                    />
+                    <span>Numbers, patterns, metrics and charts</span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- STEP 2: INTERESTS -->
+            <section
+              class="form-step hidden space-y-4 sm:space-y-5"
+              data-step="2"
+            >
+              <div>
+                <h3 class="text-base sm:text-lg font-semibold mb-1">
+                  What in tech actually excites you?
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-400">
+                  Don’t overthink it – pick what genuinely sounds interesting,
+                  even if you’ve never done it before.
+                </p>
+              </div>
+
+              <!-- Interests -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  Which of these activities sound interesting? (Pick at least one) *
+                </p>
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="build-apps"
+                      class="choice-pill-input"
+                    />
+                    <span>Building websites / apps / tools with code</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="design-ui"
+                      class="choice-pill-input"
+                    />
+                    <span>Designing how apps & websites look and feel</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="data"
+                      class="choice-pill-input"
+                    />
+                    <span>Analysing data to find patterns & insights</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="product"
+                      class="choice-pill-input"
+                    />
+                    <span>Deciding what to build and why (product/project)</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="qa"
+                      class="choice-pill-input"
+                    />
+                    <span>Testing things, finding bugs & improving quality</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="nocode"
+                      class="choice-pill-input"
+                    />
+                    <span>Building automations with no-code / low-code tools</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_interests"
+                      value="marketing"
+                      class="choice-pill-input"
+                    />
+                    <span>Content, campaigns, social media & growth</span>
+                  </label>
+                </div>
+                <p class="text-[0.7rem] text-slate-400 mt-1">
+                  It’s okay if you’re not doing any of this yet – this is about curiosity.
+                </p>
+              </div>
+
+              <!-- Coding feelings -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  How do you feel about coding? *
+                </p>
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_coding_feel"
+                      value="love-code"
+                      required
+                      class="choice-pill-input"
+                    />
+                    <span>Love the idea of coding / already enjoy it</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_coding_feel"
+                      value="ok-code"
+                      class="choice-pill-input"
+                    />
+                    <span>I can handle some coding, but not all day</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_coding_feel"
+                      value="minimal-code"
+                      class="choice-pill-input"
+                    />
+                    <span>I prefer roles that are mostly non-coding</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- People vs detail -->
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  What sounds more like you? *
+                </p>
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_people_vs_detail"
+                      value="people-facing"
+                      required
+                      class="choice-pill-input"
+                    />
+                    <span>I like talking to users, stakeholders, teammates a lot</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_people_vs_detail"
+                      value="deep-focus"
+                      class="choice-pill-input"
+                    />
+                    <span>I enjoy long deep-focus sessions & minimal meetings</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="radio"
+                      name="q_people_vs_detail"
+                      value="balanced"
+                      class="choice-pill-input"
+                    />
+                    <span>I’m okay with a mix of people time & focus time</span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- STEP 3: LIFESTYLE -->
+            <section
+              class="form-step hidden space-y-4 sm:space-y-5"
+              data-step="3"
+            >
+              <div>
+                <h3 class="text-base sm:text-lg font-semibold mb-1">
+                  Lifestyle & what you value
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-400">
+                  We want a career that fits your life, not just your skills.
+                </p>
+              </div>
+
+              <div class="grid gap-3 sm:gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    for="q_hours_per_week"
+                    class="block text-xs font-medium text-slate-200 mb-1"
+                  >
+                    How many hours per week can you realistically learn/practice
+                    for the next 6 months?
+                  </label>
+                  <input
+                    type="number"
+                    id="q_hours_per_week"
+                    name="q_hours_per_week"
+                    min="1"
+                    max="80"
+                    placeholder="e.g. 5, 10, 15"
+                    class="w-full rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <p class="text-xs font-medium text-slate-200 mb-1">
+                    Ideal work setup in 3–5 years?
+                  </p>
+                  <div class="grid gap-2">
+                    <label class="choice-pill">
+                      <input
+                        type="radio"
+                        name="q_work_setup"
+                        value="remote"
+                        class="choice-pill-input"
+                      />
+                      <span>Remote from anywhere</span>
+                    </label>
+                    <label class="choice-pill">
+                      <input
+                        type="radio"
+                        name="q_work_setup"
+                        value="hybrid"
+                        class="choice-pill-input"
+                      />
+                      <span>Hybrid – some days office, some days home</span>
+                    </label>
+                    <label class="choice-pill">
+                      <input
+                        type="radio"
+                        name="q_work_setup"
+                        value="office"
+                        class="choice-pill-input"
+                      />
+                      <span>Office-based with a team</span>
+                    </label>
+                    <label class="choice-pill">
+                      <input
+                        type="radio"
+                        name="q_work_setup"
+                        value="freelance"
+                        class="choice-pill-input"
+                      />
+                      <span>Freelance / running my own thing</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p class="text-xs font-medium text-slate-200 mb-1">
+                  What matters most to you in a tech career? (Pick a few)
+                </p>
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="income"
+                      class="choice-pill-input"
+                    />
+                    <span>High income</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="flexibility"
+                      class="choice-pill-input"
+                    />
+                    <span>Flexibility / remote-friendly</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="creativity"
+                      class="choice-pill-input"
+                    />
+                    <span>Creativity</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="stability"
+                      class="choice-pill-input"
+                    />
+                    <span>Stability / job security</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="growth"
+                      class="choice-pill-input"
+                    />
+                    <span>Growth & challenge</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="impact"
+                      class="choice-pill-input"
+                    />
+                    <span>Impact / helping people</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input
+                      type="checkbox"
+                      name="q_values"
+                      value="recognition"
+                      class="choice-pill-input"
+                    />
+                    <span>Status / recognition</span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- STEP 4: MOTIVATION -->
+            <section
+              class="form-step hidden space-y-4 sm:space-y-5"
+              data-step="4"
+            >
+              <div>
+                <h3 class="text-base sm:text-lg font-semibold mb-1">
+                  Motivation & near-term goals
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-400">
+                  These give great context when reviewing results together.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  for="q_why_tech"
+                  class="block text-xs font-medium text-slate-200 mb-1"
+                  >Why do you want a career in tech (beyond just “for the
+                  money”)?</label
+                >
+                <textarea
+                  id="q_why_tech"
+                  name="q_why_tech"
+                  rows="3"
+                  class="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  placeholder="E.g. I like solving problems, I want flexibility, I enjoy digital products..."
+                ></textarea>
+              </div>
+
+              <div>
+                <label
+                  for="q_3_month_goal"
+                  class="block text-xs font-medium text-slate-200 mb-1"
+                  >What’s one small win you’d love to achieve in the next 3
+                  months?</label
+                >
+                <textarea
+                  id="q_3_month_goal"
+                  name="q_3_month_goal"
+                  rows="3"
+                  class="w-full rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder-slate-500 shadow-inner shadow-slate-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  placeholder="E.g. Finish a beginner course, build my first website, learn basic Figma..."
+                ></textarea>
+              </div>
+            </section>
+
+            <!-- FOOTER -->
+            <div
+              class="sticky bottom-0 bg-slate-950/95 pt-3 border-t border-slate-800 mt-2 flex items-center justify-between gap-3"
+            >
+              <button
+                type="button"
+                id="prevBtn"
+                class="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Back
+              </button>
+
+              <div class="flex flex-col items-end gap-1">
+                <p
+                  id="statusText"
+                  class="text-[0.7rem] text-slate-400 text-right"
+                >
+                  You can move back and forth; answers are kept as you go.
+                </p>
+                <div class="flex items-center gap-2">
+                  <span
+                    id="stepIndicatorCurrent"
+                    class="text-[0.75rem] text-slate-300"
+                    >Step 1</span
+                  >
+                  <button
+                    type="button"
+                    id="nextBtn"
+                    class="inline-flex items-center gap-1 rounded-full bg-brand-600 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                  >
+                    Next
+                    <span>→</span>
+                  </button>
+                  <button
+                    type="submit"
+                    id="submitBtn"
+                    class="hidden inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-emerald-950 hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                  >
+                    Get my best-fit path
+                    <span class="text-lg">✨</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status messages -->
+            <p
+              id="errorMsg"
+              class="mt-1 text-[0.75rem] text-rose-400 hidden"
+            ></p>
+            <p
+              id="successMsg"
+              class="mt-1 text-[0.75rem] text-emerald-400 hidden"
+            ></p>
+          </form>
+
+          <!-- RESULT PANEL -->
+          <section
+            id="resultPanel"
+            class="mt-4 hidden rounded-2xl border border-emerald-500/60 bg-gradient-to-br from-emerald-950/80 via-emerald-900/80 to-slate-950/90 px-4 py-3 sm:px-5 sm:py-4 text-emerald-50 animate-in slide-in-from-bottom-4"
+          >
+            <div class="inline-flex items-center gap-2 mb-2">
+              <span
+                class="inline-flex items-center justify-center rounded-full border border-emerald-400/70 bg-emerald-500/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide"
+              >
+                Best-fit suggestion
+              </span>
+            </div>
+
+            <h4
+              id="careerTitle"
+              class="text-base sm:text-lg font-semibold mb-1"
+            ></h4>
+            <p
+              id="careerDescription"
+              class="text-xs sm:text-sm text-emerald-100/90 mb-2"
+            ></p>
+
+            <div class="mt-2">
+              <h5 class="text-xs font-semibold text-emerald-200 mb-1.5">
+                Starter links for this path
+              </h5>
+              <ul
+                id="careerResources"
+                class="space-y-1.5 text-[0.75rem] sm:text-xs text-emerald-100/90 underline-offset-2"
+              ></ul>
+            </div>
+
+            <p class="mt-3 text-[0.7rem] text-emerald-100/80">
+              This is a starting point, not a life sentence. You can always
+              pivot as you learn more about yourself and the industry.
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supabase + app logic -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
