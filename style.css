@@ -1,18 +1,41 @@
-/* styles.css
- *
- * Extra styles on top of Tailwind.
- * Keep this file framework-agnostic so GitHub Pages can serve it directly.
- */
+/* style.css
+   Extra styling on top of Tailwind
+*/
 
-/* Smooth fade/slide for key sections */
+/* Fancy font + slightly larger base text */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+html,
+body {
+  font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont,
+    "SF Pro Text", "Segoe UI", sans-serif;
+  font-size: 16px; /* bump global font size */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassy card */
+.glass-card {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(30, 64, 175, 0.55);
+  background:
+    radial-gradient(circle at top left, rgba(129, 140, 248, 0.16), transparent),
+    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.16), transparent),
+    rgba(15, 23, 42, 0.98);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 18px 80px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+/* Fade in up animation */
 .fade-in-up {
-  animation: fadeInUp 0.35s ease-out both;
+  animation: fadeInUp 0.4s ease-out both;
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -20,50 +43,125 @@
   }
 }
 
-/* Choice pill styling shared by radio/checkbox labels */
+/* Scale fade for modal-like transitions */
+.animate-fade-in-scale {
+  animation: fadeInScale 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Countdown pop */
+.countdown-pop {
+  animation: countdownPop 0.6s ease-out infinite;
+}
+
+@keyframes countdownPop {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+  40% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+
+/* Choice pill styling */
 .choice-pill {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(51, 65, 85, 0.9); /* slate-700 */
-  background: rgba(15, 23, 42, 0.9); /* slate-900 */
-  padding: 0.5rem 0.75rem;
-  font-size: 0.78rem;
-  color: #e5e7eb; /* slate-200/100 */
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.75); /* slate-400 */
+  background: radial-gradient(
+    circle at top left,
+    rgba(148, 163, 184, 0.32),
+    rgba(15, 23, 42, 0.96)
+  );
+  font-size: 0.875rem; /* larger than before */
+  line-height: 1.4;
+  color: #e5e7eb;
   cursor: pointer;
   transition:
     border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.12s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.08s ease;
 }
 
 .choice-pill:hover {
-  border-color: rgba(129, 140, 248, 1); /* indigo-400 */
-  background: rgba(15, 23, 42, 1);
+  border-color: rgba(129, 140, 248, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(79, 70, 229, 0.45),
+    0 8px 30px rgba(15, 23, 42, 0.9);
   transform: translateY(-1px);
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
 }
 
-/* Make the input visually aligned but not dominant */
+/* Make the actual checkbox / radio visible */
 .choice-pill-input {
-  width: 1rem;
-  height: 1rem;
+  position: static; /* let it sit naturally in the flex row */
+  inset: auto;
+  opacity: 1; /* show input */
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #6366f1; /* Tailwind indigo-500 */
+  border-radius: 999px;
 }
 
-/* Scrollbar styling for the modal body */
-#quizModal .overflow-y-auto::-webkit-scrollbar {
+/* Checked state – emphasize label text */
+.choice-pill-input:checked ~ span {
+  color: #f9fafb;
+  font-weight: 500;
+}
+
+.choice-pill-input:checked ~ span::before {
+  content: "";
+}
+
+/* Keyboard focus */
+.choice-pill-input:focus-visible ~ span {
+  outline: 2px solid rgba(79, 70, 229, 0.9);
+  outline-offset: 2px;
+}
+
+/* Scrollbar for the questions area (WebKit) */
+#stepsContainer::-webkit-scrollbar {
   width: 6px;
 }
-
-#quizModal .overflow-y-auto::-webkit-scrollbar-track {
+#stepsContainer::-webkit-scrollbar-track {
   background: transparent;
 }
-
-#quizModal .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(79, 70, 229, 0.7); /* brand-ish */
+#stepsContainer::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.8);
   border-radius: 999px;
+}
+
+/* Small screens: let cards breathe */
+@media (max-width: 640px) {
+  .glass-card {
+    border-radius: 1.5rem;
+  }
+
+  .choice-pill {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.85rem;
+  }
 }
